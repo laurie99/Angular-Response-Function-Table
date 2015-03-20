@@ -13,6 +13,7 @@ def readFile(input, output):
 		# SPECT listmode data
 		# 10 int16, 1 float, 1 interger*1
 		# data = []
+		total_weight = 0
 		with open(input, "rb") as openfile, open(output, 'wb') as csvfile:
 			positions = openfile.read(2*10)
 			writer = csv.writer(csvfile)
@@ -25,7 +26,9 @@ def readFile(input, output):
 				# print locations+energy+scatter
 				# data.append(locations+energy+scatter)
 				writer.writerow(locations+energy+scatter)
+				total_weight += energy
 				positions = openfile.read(2*10)
+		return total_weight
 
 	else:
 		# SPECT projection data
@@ -35,9 +38,11 @@ def readFile(input, output):
 			projection = struct.unpack('f'*64*64*64, fileContent)
 			# projection.append(struct.unpack('f'*64, openfile.read(4*64)))
 		print projection, len(projection)
+		return projection
 
 def main():
-	photons = readFile(sys.argv[1], sys.argv[3])
+	photon_weight = readFile(sys.argv[1], sys.argv[3])
+	print photon_weight
 		
 if __name__ == "__main__":
 	main()
