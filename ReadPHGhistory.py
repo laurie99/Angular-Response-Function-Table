@@ -18,7 +18,7 @@ def readFile(input, output):
 		while photon_number != "":
 			try:
 				photon_number = struct.unpack('b', photon_number)
-			except Exception, e:
+			except Exception as e:
 				print str(e), photon_number
 				break
 
