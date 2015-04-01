@@ -171,7 +171,8 @@ def ARF_table(photon_angles, N0):
 	for ii in range(2048):
 		solid_angles[ii] = abs(cos_list[ii+1]-cos_list[ii]) * delta_phi
 
-	table = 4*pi*table/(len(photon_angles)*solid_angles)
+	# table = 4*pi*table/(len(photon_angles)*solid_angles)
+	table = 4*pi*table/(N0*solid_angles)
 	return abs(table)  # eliminate -0.0 entries
 
 def main():
