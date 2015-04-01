@@ -144,7 +144,7 @@ def ARF_table(photon_angles, N0):
 						phi_ind = int(3*512 -1 + np.argwhere(cot_list24 == ii))
 						break
 
-		# print quadrant, int(theta_ind), int(phi_ind), tan_phi, cot_phi, weight
+		# print(quadrant, int(theta_ind), int(phi_ind), tan_phi, cot_phi, weight)
 		table[int(theta_ind), phi_ind] += weight
 
 	# Normalize the sum of photon weights
@@ -173,7 +173,7 @@ def ARF_table(photon_angles, N0):
 		solid_angles[ii] = abs(cos_list[ii+1]-cos_list[ii]) * delta_phi
 
 	table = 4*pi*table/(len(photon_angles)*solid_angles)
-	return table
+	return abs(table)  # eliminate -0.0 entries
 
 def main():
 	# check if there are negative entries
