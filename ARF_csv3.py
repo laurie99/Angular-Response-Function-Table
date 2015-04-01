@@ -1,7 +1,7 @@
-# Process simind listmode file into ARF table
+# Process simind listmode csv file into ARF table
 # Jie (Laurie) Zhang
 # 03/30/15
-# e.g. python ARF3.py input output
+# e.g. python ARF3.py *.csv output
 import sys
 import csv
 from math import sqrt, atan, degrees, pi
