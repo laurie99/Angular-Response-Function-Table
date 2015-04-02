@@ -1,8 +1,9 @@
 # Process simind listmode file into ARF table
 # Jie (Laurie) Zhang
 # 04/01/15
-# e.g. python ARF_listmode3.py *.lmf output
+# e.g. python ARF_listmode3.py *.lmf output logfile_name
 import sys
+import cProfile
 import csv
 import struct
 from math import sqrt, atan, degrees, pi
@@ -10,7 +11,6 @@ import numpy as np
 
 def read_file(filename):
 	"""Read listmode data: 10 int16, 1 float, 1 interger*1"""
-	total_weights = 0
 	data = []
 	with open(filename, "rb") as openfile:
 		positions = openfile.read(2*10)
@@ -21,10 +21,9 @@ def read_file(filename):
 				scatter = struct.unpack('b', openfile.read(1))
 				data.append(locations+weight+scatter)
 				positions = openfile.read(2*10)
-				total_weights += float(weight[0])
 			except:
 				break
-	return data, total_weights
+	return data
 
 def angles(data):
 	"""Calculate the cosine of the azimuthal angle, and tan/cot of polar angle"""
@@ -44,6 +43,8 @@ def angles(data):
 		
 			weight = float(photon[10])
 			scatter_order = int(photon[11])
+
+			# print(x0,y0,z0,xp,yp,zp,xc,yc,zc,weight,scatter_order)
 
 			x_vec = xc-x0
 			y_vec = yc-y0
@@ -74,7 +75,7 @@ def angles(data):
 			photon_angles.append([quadrant, cos_theta, tan_phi, cot_phi, energy, weight])
 	return photon_angles
 
-def ARF_table(photon_angles, N0):
+def ARF_table(photon_angles):
 	"""Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi. Then normalize the table"""
 	table = np.zeros((2048, 512*4))
 	cos_list = np.concatenate([np.linspace(1., 0.99, 1025), np.linspace(0.99, 0.95, 1535-1024+2)[1:], np.linspace(0.95, 0.75, 1791-1536+2)[1:], np.linspace(0.75, 0., 2047-1792+2)[1:]]) 
@@ -89,6 +90,7 @@ def ARF_table(photon_angles, N0):
 		tan_phi = photon[2]
 		cot_phi = photon[3]
 		weight = photon[5]
+		# print(quadrant,cos_theta,tan_phi,cot_phi,weight)
 		
 		theta_ind = phi_ind = None
 
@@ -171,15 +173,16 @@ def ARF_table(photon_angles, N0):
 	for ii in range(2048):
 		solid_angles[ii] = abs(cos_list[ii+1]-cos_list[ii]) * delta_phi
 
-	# table = 4*pi*table/(len(photon_angles)*solid_angles)
-	table = 4*pi*table/(N0*solid_angles)
+	table = 4*pi*table/(1e6*solid_angles)
+	# table = 4*pi*table/(N0*solid_angles)
 	return abs(table)  # eliminate -0.0 entries
 
 def main():
 	# check if there are negative entries
-	data, total_weights = read_file(sys.argv[1])
+	data = read_file(sys.argv[1])
 	photon_angles = angles(data)
-	np.savetxt(sys.argv[2],ARF_table(photon_angles, total_weights),fmt='%.5f',)
+	np.savetxt(sys.argv[2],ARF_table(photon_angles),fmt='%.5f',)
 		
 if __name__ == "__main__":
-	main()
+	cProfile.run('main()',sys.argv[3])
+	# main()
