@@ -1,7 +1,8 @@
 # Process simind listmode file into ARF table
+# Python3
 # Jie (Laurie) Zhang
 # 04/01/15
-# e.g. python ARF_listmode3.py *.lmf output logfile_name
+# e.g. python ARF_listmode_v1.py *.lmf output logfile_name
 import sys
 import cProfile
 import csv
