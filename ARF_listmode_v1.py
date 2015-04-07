@@ -99,50 +99,50 @@ def ARF_table(photon_angles):
 			theta_ind = phi_ind = 0
 		else:
 			for ii in cos_list:
-				if ii < cos_theta:
+				if ii <= cos_theta:
 					theta_ind = max(int(np.argwhere(cos_list == ii)-1), 0)
 					break
 
 			if abs(tan_phi) <= 1:
 				if quadrant == 1:
 					for ii in tan_list13:
-						if ii > tan_phi:
+						if ii >= tan_phi:
 							phi_ind = max(int(np.argwhere(tan_list13 == ii)-1), 0)
 							break
 				elif quadrant == 2:
 					for ii in tan_list24:
-						if ii > tan_phi:
+						if ii >= tan_phi:
 							phi_ind = int(1*512 + 255 + np.argwhere(tan_list24 == ii))
 							break
 				elif quadrant == 3:
 					for ii in tan_list13:
-						if ii > tan_phi:
+						if ii >= tan_phi:
 							phi_ind = int(2*512 -1 + np.argwhere(tan_list13 == ii))
 							break
 				elif quadrant == 4:
 					for ii in tan_list24:
-						if ii > tan_phi:
+						if ii >= tan_phi:
 							phi_ind = int(3*512 + 255 + np.argwhere(tan_list24 == ii))
 							break
 			elif abs(cot_phi) <= 1:
 				if quadrant == 1:
 					for ii in cot_list13:
-						if ii < cot_phi:
+						if ii <= cot_phi:
 							phi_ind = int(255 + np.argwhere(cot_list13 == ii))
 							break
 				elif quadrant == 2:
 					for ii in cot_list24:
-						if ii < cot_phi:
+						if ii <= cot_phi:
 							phi_ind = int(1*512 -1 + np.argwhere(cot_list24 == ii))
 							break
 				elif quadrant == 3:
 					for ii in cot_list13:
-						if ii < cot_phi:
+						if ii <= cot_phi:
 							phi_ind = int(2*512 + 255 + np.argwhere(cot_list13 == ii))
 							break
 				elif quadrant == 4:
 					for ii in cot_list24:
-						if ii < cot_phi:
+						if ii <= cot_phi:
 							phi_ind = int(3*512 -1 + np.argwhere(cot_list24 == ii))
 							break
 
