@@ -245,7 +245,7 @@ def main():
     
     # Generate single weight tuples for each photon
     single_weight_lists = pool.map(partial(Map, cos_list, tan_list13, cot_list13, tan_list24, cot_list24), partitioned_list)
-    print('The work is assigned to %d workers broken into length %d' % (n, int(len(data)/n)))
+    print('The work is assigned to %d workers broken into length of %d photons' % (n, int(len(data)/n)))
 
     organize_photon_dict = Partition(single_weight_lists)
 
