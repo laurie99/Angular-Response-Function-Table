@@ -182,7 +182,7 @@ def main():
 	# check if there are negative entries
 	data = read_file(sys.argv[1])
 	photon_angles = angles(data)
-	np.savetxt(sys.argv[2],ARF_table(photon_angles),fmt='%.5f',)
+	np.savetxt(sys.argv[2],ARF_table(photon_angles),fmt='%.5f')
 		
 if __name__ == "__main__":
 	cProfile.run('main()',sys.argv[3])

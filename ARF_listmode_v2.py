@@ -2,7 +2,7 @@
 # Python3
 # Jie (Laurie) Zhang
 # 04/06/15
-# e.g. python ARF_listmode_v2.py *.lmf output logfile_name
+# e.g. python ARF_listmode_v2.py *.lmf output_name lower_energy upper_energy
 import sys
 import cProfile
 import csv
@@ -126,7 +126,7 @@ class PhotonListMode(object):
                             break
         return (theta_ind, phi_ind)
 
-def read_file(filename):
+def read_file(filename, lower_energy, upper_energy):
     """Read listmode data: 10 int16, 1 float, 1 interger*1"""
     data = []
     with open(filename, "rb") as openfile:
@@ -139,7 +139,7 @@ def read_file(filename):
                 scatter = int(struct.unpack('b', openfile.read(1))[0])
 
                 # 20% energy window
-                if 126. <= energy <= 154.:
+                if float(lower_energy) <= energy <= float(upper_energy):
                     photon = PhotonListMode(locations, energy, weight, scatter)
                     data.append(photon)
 
@@ -179,7 +179,7 @@ def normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_lis
 
 def main():
     # check if there are negative entries
-    data = read_file(sys.argv[1])
+    data = read_file(sys.argv[1], sys.argv[3], sys.argv[4])
 
     """Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi. Then normalize the table"""
     table = np.zeros((2048, 512*4))
@@ -194,8 +194,8 @@ def main():
         table[photon.ARF_table(cos_list, tan_list13, cot_list13, tan_list24, cot_list24)[0], photon.ARF_table(cos_list, tan_list13, cot_list13, tan_list24, cot_list24)[1]] += photon.weight
     
     table = normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24)
-    np.savetxt(sys.argv[2],table,fmt='%.5f')
+    np.savetxt(sys.argv[2]+'.txt',table,fmt='%.5f')
         
 if __name__ == "__main__":
-    cProfile.run('main()',sys.argv[3])
+    cProfile.run('main()',sys.argv[2]+'.log')
     # main()
