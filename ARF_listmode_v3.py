@@ -7,7 +7,7 @@ import sys
 import cProfile
 import csv
 import struct
-from math import sqrt, atan, degrees, pi
+from math import sqrt, atan, degrees, pi, floor
 import numpy as np
 from multiprocessing import Pool
 from functools import partial
@@ -18,25 +18,25 @@ class PhotonListMode(object):
     '"""
 
     def __init__(self, locations, energy, weight, scatter):
-        self.X0 = locations[0]
-        self.Y0 = locations[1]
-        self.Z0 = locations[2]
+        # self.X0 = locations[0]
+        # self.Y0 = locations[1]
+        # self.Z0 = locations[2]
 
-        self.Xp = locations[3]
-        self.Yp = locations[4]
-        self.Zp = locations[5]
+        # self.Xp = locations[3]
+        # self.Yp = locations[4]
+        # self.Zp = locations[5]
 
-        self.Xc = locations[6]
-        self.Yc = locations[7]
-        self.Zc = locations[8]
+        # self.Xc = locations[6]
+        # self.Yc = locations[7]
+        # self.Zc = locations[8]
 
         self.energy = energy
         self.weight = weight
         self.scatter = scatter
 
-        self.X_vec = self.Xc-self.X0
-        self.Y_vec = self.Yc-self.Y0
-        self.Z_vec = self.Zc-self.Z0
+        self.X_vec = locations[6]-locations[0]
+        self.Y_vec = locations[7]-locations[1]
+        self.Z_vec = locations[8]-locations[2]
 
     def mod(self):
         travel_dist = sqrt(self.X_vec**2 + self.Y_vec**2 + self.Z_vec**2)
@@ -74,71 +74,57 @@ class PhotonListMode(object):
             cot_phi = float("inf")
         return cot_phi
 
-    def ARF_table(self, cos_list, tan_list13, cot_list13, tan_list24, cot_list24):
+    def ARF_table(self):
         """Find the correct position in the table"""
         theta_ind = phi_ind = None
+        quadrant = self.quadrant()
+        cos_theta = self.cos_theta()
+        tan_phi = self.tan_phi()
+        cot_phi = self.cot_phi()
 
-        if self.quadrant() == 0:
+        if quadrant == 0:
             theta_ind = phi_ind = 0
         else:
-            for ii in cos_list:
-                if ii <= self.cos_theta():
-                    theta_ind = max(int(np.argwhere(cos_list == ii)-1), 0)
-                    break
+            if 1 >= cos_theta >= 0.99:
+                theta_ind = floor(1023*(cos_theta-1)/(0.99-1))
+            elif 0.99 >= cos_theta >= 0.95:
+                theta_ind = floor(512*(cos_theta-0.99)/(0.95-0.99)) + 1023
+            elif 0.95 >= cos_theta >= 0.75:
+                theta_ind = floor(256*(cos_theta-0.95)/(0.75-0.95)) + 512 + 1023
+            elif 0.75 >= cos_theta >= 0:
+                theta_ind = floor(256*(cos_theta-0.75)/(-0.75)) + 256 + 512 + 1023
 
-            if abs(self.tan_phi()) <= 1:
-                if self.quadrant() == 1:
-                    for ii in tan_list13:
-                        if ii >= self.tan_phi():
-                            phi_ind = max(int(np.argwhere(tan_list13 == ii)-1), 0)
-                            break
-                elif self.quadrant() == 2:
-                    for ii in tan_list24:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(1*512 + 255 + np.argwhere(tan_list24 == ii))
-                            break
-                elif self.quadrant() == 3:
-                    for ii in tan_list13:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(2*512 -1 + np.argwhere(tan_list13 == ii))
-                            break
-                elif self.quadrant() == 4:
-                    for ii in tan_list24:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(3*512 + 255 + np.argwhere(tan_list24 == ii))
-                            break
-            elif abs(self.cot_phi()) <= 1:
-                if self.quadrant() == 1:
-                    for ii in cot_list13:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(255 + np.argwhere(cot_list13 == ii))
-                            break
-                elif self.quadrant() == 2:
-                    for ii in cot_list24:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(1*512 -1 + np.argwhere(cot_list24 == ii))
-                            break
-                elif self.quadrant() == 3:
-                    for ii in cot_list13:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(2*512 + 255 + np.argwhere(cot_list13 == ii))
-                            break
-                elif self.quadrant() == 4:
-                    for ii in cot_list24:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(3*512 -1 + np.argwhere(cot_list24 == ii))
-                            break
+            if abs(tan_phi) <= 1:
+                if quadrant == 1:
+                    phi_ind = floor(255*tan_phi)
+                elif quadrant == 2:
+                    phi_ind = 768 + floor(255*(tan_phi+1))
+                elif quadrant == 3:
+                    phi_ind = 1024 + floor(255*tan_phi)
+                elif quadrant == 4:
+                    phi_ind = 1792 + floor(255*(tan_phi+1))
+            elif abs(cot_phi) <= 1:
+                if quadrant == 1:
+                    phi_ind = 256 + floor(-255*(cot_phi-1))
+                elif quadrant == 2:
+                    phi_ind = 512 + floor(-255*cot_phi)
+                elif quadrant == 3:
+                    phi_ind = 1280 + floor(-255*(cot_phi-1))
+                elif quadrant == 4:
+                    phi_ind = 1536 + floor(-255*cot_phi)
+
         if theta_ind == None or phi_ind == None:
-            print(self.quadrant(), self.cos_theta(), self.tan_phi(), self.cot_phi())
+            print(quadrant, cos_theta, tan_phi, cot_phi, theta_ind, phi_ind)
+
         return (theta_ind, phi_ind)
 
-def Map(cos_list, tan_list13, cot_list13, tan_list24, cot_list24, photons):
+def Map(photons):
     """
     Given a list of photons, return a list of tuples containing the positions of the photon in the ARF_table, and the photon weight: (position, weight)
     """
     results = []
     for photon in photons:
-        results.append((photon.ARF_table(cos_list, tan_list13, cot_list13, tan_list24, cot_list24), photon.weight))
+        results.append((photon.ARF_table(), photon.weight))
     return results
 
 def Partition(photon_lists):
@@ -219,8 +205,8 @@ def normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_lis
     for ii in range(2048):
         solid_angles[ii] = abs(cos_list[ii+1]-cos_list[ii]) * delta_phi
 
-    # table = 4*pi*table/(0.8910*1e6*solid_angles)
-    table = 4*pi*table/(1e6*solid_angles)
+    table = 4*pi*table/(0.8910*1e6*solid_angles)
+    # table = 4*pi*table/(1e6*solid_angles)
     return abs(table)  # eliminate -0.0 entries
 
 def main():
@@ -244,7 +230,7 @@ def main():
     partitioned_list = list(chunks(data, int(len(data)/n)))
     
     # Generate single weight tuples for each photon
-    single_weight_lists = pool.map(partial(Map, cos_list, tan_list13, cot_list13, tan_list24, cot_list24), partitioned_list)
+    single_weight_lists = pool.map(Map, partitioned_list)
     print('The work is assigned to %d workers broken into length of %d photons' % (n, int(len(data)/n)))
 
     organize_photon_dict = Partition(single_weight_lists)

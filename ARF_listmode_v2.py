@@ -1,4 +1,5 @@
 # Process simind listmode file into ARF table in an OOP style
+# Faster way to compute the index
 # Python3
 # Jie (Laurie) Zhang
 # 04/06/15
@@ -7,7 +8,7 @@ import sys
 import cProfile
 import csv
 import struct
-from math import sqrt, atan, degrees, pi
+from math import sqrt, atan, degrees, pi, floor
 import numpy as np
 
 class PhotonListMode(object):
@@ -70,60 +71,48 @@ class PhotonListMode(object):
             cot_phi = float("inf")
         return cot_phi
 
-    def ARF_table(self, cos_list, tan_list13, cot_list13, tan_list24, cot_list24):
+    def ARF_table(self):
         """Find the correct position in the table"""
         theta_ind = phi_ind = None
+        quadrant = self.quadrant()
+        cos_theta = self.cos_theta()
+        tan_phi = self.tan_phi()
+        cot_phi = self.cot_phi()
 
-        if self.quadrant() == 0:
+        if quadrant == 0:
             theta_ind = phi_ind = 0
         else:
-            for ii in cos_list:
-                if ii <= self.cos_theta():
-                    theta_ind = max(int(np.argwhere(cos_list == ii)-1), 0)
-                    break
+            if 1 >= cos_theta >= 0.99:
+                theta_ind = floor(1023*(cos_theta-1)/(0.99-1))
+            elif 0.99 >= cos_theta >= 0.95:
+                theta_ind = floor(512*(cos_theta-0.99)/(0.95-0.99)) + 1023
+            elif 0.95 >= cos_theta >= 0.75:
+                theta_ind = floor(256*(cos_theta-0.95)/(0.75-0.95)) + 512 + 1023
+            elif 0.75 >= cos_theta >= 0:
+                theta_ind = floor(256*(cos_theta-0.75)/(-0.75)) + 256 + 512 + 1023
 
-            if abs(self.tan_phi()) <= 1:
-                if self.quadrant() == 1:
-                    for ii in tan_list13:
-                        if ii >= self.tan_phi():
-                            phi_ind = max(int(np.argwhere(tan_list13 == ii)-1), 0)
-                            break
-                elif self.quadrant() == 2:
-                    for ii in tan_list24:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(1*512 + 255 + np.argwhere(tan_list24 == ii))
-                            break
-                elif self.quadrant() == 3:
-                    for ii in tan_list13:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(2*512 -1 + np.argwhere(tan_list13 == ii))
-                            break
-                elif self.quadrant() == 4:
-                    for ii in tan_list24:
-                        if ii >= self.tan_phi():
-                            phi_ind = int(3*512 + 255 + np.argwhere(tan_list24 == ii))
-                            break
-            elif abs(self.cot_phi()) <= 1:
-                if self.quadrant() == 1:
-                    for ii in cot_list13:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(255 + np.argwhere(cot_list13 == ii))
-                            break
-                elif self.quadrant() == 2:
-                    for ii in cot_list24:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(1*512 -1 + np.argwhere(cot_list24 == ii))
-                            break
-                elif self.quadrant() == 3:
-                    for ii in cot_list13:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(2*512 + 255 + np.argwhere(cot_list13 == ii))
-                            break
-                elif self.quadrant() == 4:
-                    for ii in cot_list24:
-                        if ii <= self.cot_phi():
-                            phi_ind = int(3*512 -1 + np.argwhere(cot_list24 == ii))
-                            break
+            if abs(tan_phi) <= 1:
+                if quadrant == 1:
+                    phi_ind = floor(255*tan_phi)
+                elif quadrant == 2:
+                    phi_ind = 768 + floor(255*(tan_phi+1))
+                elif quadrant == 3:
+                    phi_ind = 1024 + floor(255*tan_phi)
+                elif quadrant == 4:
+                    phi_ind = 1792 + floor(255*(tan_phi+1))
+            elif abs(cot_phi) <= 1:
+                if quadrant == 1:
+                    phi_ind = 256 + floor(-255*(cot_phi-1))
+                elif quadrant == 2:
+                    phi_ind = 512 + floor(-255*cot_phi)
+                elif quadrant == 3:
+                    phi_ind = 1280 + floor(-255*(cot_phi-1))
+                elif quadrant == 4:
+                    phi_ind = 1536 + floor(-255*cot_phi)
+
+        if theta_ind == None or phi_ind == None:
+            print(quadrant, cos_theta, tan_phi, cot_phi, theta_ind, phi_ind)
+
         return (theta_ind, phi_ind)
 
 def read_file(filename, lower_energy, upper_energy):
@@ -191,7 +180,8 @@ def main():
     cot_list24 = np.linspace(0., -1., 257)
 
     for photon in data:
-        table[photon.ARF_table(cos_list, tan_list13, cot_list13, tan_list24, cot_list24)[0], photon.ARF_table(cos_list, tan_list13, cot_list13, tan_list24, cot_list24)[1]] += photon.weight
+        index = photon.ARF_table()
+        table[index[0], index[1]] += photon.weight
     
     table = normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24)
     np.savetxt(sys.argv[2]+'.txt',table,fmt='%.5f')
