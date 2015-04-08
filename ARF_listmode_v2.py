@@ -14,25 +14,25 @@ class PhotonListMode(object):
     """Listmode photon: 'X0','Y0','Z0','XPHANT','YPHANT','ZPHANT','XCRYSTAL','YCRYSTAL','ZCRYSTAL','Energy in Crystal','Photon Weight','Scatter Order'"""
 
     def __init__(self, locations, energy, weight, scatter):
-        self.X0 = locations[0]
-        self.Y0 = locations[1]
-        self.Z0 = locations[2]
+        # self.X0 = locations[0]
+        # self.Y0 = locations[1]
+        # self.Z0 = locations[2]
 
-        self.Xp = locations[3]
-        self.Yp = locations[4]
-        self.Zp = locations[5]
+        # self.Xp = locations[3]
+        # self.Yp = locations[4]
+        # self.Zp = locations[5]
 
-        self.Xc = locations[6]
-        self.Yc = locations[7]
-        self.Zc = locations[8]
+        # self.Xc = locations[6]
+        # self.Yc = locations[7]
+        # self.Zc = locations[8]
 
         self.energy = energy
         self.weight = weight
         self.scatter = scatter
 
-        self.X_vec = self.Xc-self.X0
-        self.Y_vec = self.Yc-self.Y0
-        self.Z_vec = self.Zc-self.Z0
+        self.X_vec = locations[6]-locations[0]
+        self.Y_vec = locations[7]-locations[1]
+        self.Z_vec = locations[8]-locations[2]
 
     def mod(self):
         travel_dist = sqrt(self.X_vec**2 + self.Y_vec**2 + self.Z_vec**2)
@@ -173,8 +173,8 @@ def normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_lis
     for ii in range(2048):
         solid_angles[ii] = abs(cos_list[ii+1]-cos_list[ii]) * delta_phi
 
-    # table = 4*pi*table/(0.8910*1e6*solid_angles)
-    table = 4*pi*table/(1e6*solid_angles)
+    table = 4*pi*table/(0.8910*1e6*solid_angles)
+    # table = 4*pi*table/(1e6*solid_angles)
     return abs(table)  # eliminate -0.0 entries
 
 def main():
