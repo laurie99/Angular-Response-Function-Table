@@ -18,18 +18,6 @@ class PhotonListMode(object):
     '"""
 
     def __init__(self, locations, energy, weight, scatter):
-        # self.X0 = locations[0]
-        # self.Y0 = locations[1]
-        # self.Z0 = locations[2]
-
-        # self.Xp = locations[3]
-        # self.Yp = locations[4]
-        # self.Zp = locations[5]
-
-        # self.Xc = locations[6]
-        # self.Yc = locations[7]
-        # self.Zc = locations[8]
-
         self.energy = energy
         self.weight = weight
         self.scatter = scatter
@@ -177,10 +165,16 @@ def chunks(lis, n):
     for i in range(0, len(lis), n):
         yield lis[i:i+n]
 
-def normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24):
+def normalize_table(table):
     """
     Normalize the ARF_table
     """
+    cos_list = np.concatenate([np.linspace(1., 0.99, 1025), np.linspace(0.99, 0.95, 1535-1024+2)[1:], np.linspace(0.95, 0.75, 1791-1536+2)[1:], np.linspace(0.75, 0., 2047-1792+2)[1:]]) 
+    tan_list13 = np.linspace(0., 1., 257)
+    cot_list13 = np.linspace(1., 0., 257)
+    tan_list24 = np.linspace(-1., 0., 257)
+    cot_list24 = np.linspace(0., -1., 257)
+
     solid_angles = np.zeros((2048, 512*4))
     delta_phi = np.zeros(2048)
 
@@ -216,12 +210,6 @@ def main():
     """
     Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi. Then normalize the table
     """
-    cos_list = np.concatenate([np.linspace(1., 0.99, 1025), np.linspace(0.99, 0.95, 1535-1024+2)[1:], np.linspace(0.95, 0.75, 1791-1536+2)[1:], np.linspace(0.75, 0., 2047-1792+2)[1:]]) 
-    tan_list13 = np.linspace(0., 1., 257)
-    cot_list13 = np.linspace(1., 0., 257)
-    tan_list24 = np.linspace(-1., 0., 257)
-    cot_list24 = np.linspace(0., -1., 257)
-
     # Build a pool of n processes
     n = int(sys.argv[5])
     pool = Pool(processes = n,)
@@ -231,7 +219,7 @@ def main():
     
     # Generate single weight tuples for each photon
     single_weight_lists = pool.map(Map, partitioned_list)
-    print('The work is assigned to %d workers broken into length of %d photons' % (n, int(len(data)/n)))
+    print('The work is assigned to %d workers with length of %d photons' % (n, int(len(data)/n)))
 
     organize_photon_dict = Partition(single_weight_lists)
 
@@ -242,7 +230,7 @@ def main():
     for weight in position_weight:
         table[weight[0][0], weight[0][1]] = weight[1]
  
-    table = normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24)
+    table = normalize_table(table)
     np.savetxt(sys.argv[2]+'.txt',table,fmt='%.5f')
 
     pool.close()

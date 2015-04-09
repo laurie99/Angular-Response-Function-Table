@@ -137,9 +137,15 @@ def read_file(filename, lower_energy, upper_energy):
                 break
     return data
 
-def normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24):
+def normalize_table(table):
     solid_angles = np.zeros((2048, 512*4))
     delta_phi = np.zeros(2048)
+
+    cos_list = np.concatenate([np.linspace(1., 0.99, 1025), np.linspace(0.99, 0.95, 1535-1024+2)[1:], np.linspace(0.95, 0.75, 1791-1536+2)[1:], np.linspace(0.75, 0., 2047-1792+2)[1:]]) 
+    tan_list13 = np.linspace(0., 1., 257)
+    cot_list13 = np.linspace(1., 0., 257)
+    tan_list24 = np.linspace(-1., 0., 257)
+    cot_list24 = np.linspace(0., -1., 257)
 
     for ii in range(len(delta_phi)):
         if ii <= 255:
@@ -173,17 +179,11 @@ def main():
     """Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi. Then normalize the table"""
     table = np.zeros((2048, 512*4))
 
-    cos_list = np.concatenate([np.linspace(1., 0.99, 1025), np.linspace(0.99, 0.95, 1535-1024+2)[1:], np.linspace(0.95, 0.75, 1791-1536+2)[1:], np.linspace(0.75, 0., 2047-1792+2)[1:]]) 
-    tan_list13 = np.linspace(0., 1., 257)
-    cot_list13 = np.linspace(1., 0., 257)
-    tan_list24 = np.linspace(-1., 0., 257)
-    cot_list24 = np.linspace(0., -1., 257)
-
     for photon in data:
         index = photon.ARF_table()
         table[index[0], index[1]] += photon.weight
     
-    table = normalize_table(table, cos_list, tan_list13, cot_list13, tan_list24, cot_list24)
+    table = normalize_table(table)
     np.savetxt(sys.argv[2]+'.txt',table,fmt='%.5f')
         
 if __name__ == "__main__":
