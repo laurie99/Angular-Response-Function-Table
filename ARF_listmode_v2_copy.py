@@ -1,8 +1,9 @@
-# Process simind listmode file into ARF table
+# Process simind listmode file into ARF table in an OOP style
+# Faster way to compute the index
 # Python3
 # Jie (Laurie) Zhang
-# 04/01/15
-# e.g. python ARF_listmode_v1.py *.lmf output_name lower_energy upper_energy
+# 04/06/15
+# e.g. python ARF_listmode_v2.py *.lmf output_name lower_energy upper_energy
 import sys
 import cProfile
 import csv
@@ -10,84 +11,73 @@ import struct
 from math import sqrt, atan, degrees, pi, floor
 import numpy as np
 
-def read_file(filename, lower_energy, upper_energy):
-    """Read listmode data: 10 int16, 1 float, 1 interger*1"""
-    data = []
-    with open(filename, "rb") as openfile:
-        positions = openfile.read(2*9)
-        while positions != "":
-            try:
-                locations = struct.unpack('h'*9, positions)
-                energy = struct.unpack('h', openfile.read(2))
-                weight = struct.unpack('d', openfile.read(8))
-                scatter = struct.unpack('b', openfile.read(1))
+class PhotonListMode(object):
+    """Listmode photon: 'X0','Y0','Z0','XPHANT','YPHANT','ZPHANT','XCRYSTAL','YCRYSTAL','ZCRYSTAL','Energy in Crystal','Photon Weight','Scatter Order'"""
 
-                # 20% energy window
-                if float(lower_energy) <= float(energy[0])/10 <= float(upper_energy):
-                    data.append(locations+energy+weight+scatter)
+    def __init__(self, locations, energy, weight, scatter):
+        # self.X0 = locations[0]
+        # self.Y0 = locations[1]
+        # self.Z0 = locations[2]
 
-                positions = openfile.read(2*9)
-            except:
-                break
-    return data
+        # self.Xp = locations[3]
+        # self.Yp = locations[4]
+        # self.Zp = locations[5]
 
-def angles(data):
-    """Calculate the cosine of the azimuthal angle, and tan/cot of polar angle"""
-    photon_angles = []
-    for photon in data:
-        x0 = float(photon[0])/100
-        y0 = float(photon[1])/100
-        z0 = float(photon[2])/100
-        xc = float(photon[6])/100
-        yc = float(photon[7])/100
-        zc = float(photon[8])/100
-        energy = float(photon[9])/10
-        weight = float(photon[10])
-        scatter_order = int(photon[11])
+        # self.Xc = locations[6]
+        # self.Yc = locations[7]
+        # self.Zc = locations[8]
 
-        x_vec = xc-x0
-        y_vec = yc-y0
-        z_vec = zc-z0
-        
+        self.energy = energy
+        self.weight = weight
+        self.scatter = scatter
+
+        self.X_vec = locations[6]-locations[0]
+        self.Y_vec = locations[7]-locations[1]
+        self.Z_vec = locations[8]-locations[2]
+
+    def mod(self):
+        travel_dist = sqrt(self.X_vec**2 + self.Y_vec**2 + self.Z_vec**2)
+        return travel_dist
+
+    def quadrant(self):
         quadrant = 0
-        tan_phi = cot_phi = None
-        travel_dist = sqrt(pow(x_vec,2) + pow(y_vec,2) + pow(z_vec,2))
-        cos_theta = z_vec/travel_dist
-
-        if (x_vec >= 0 and y_vec > 0):
+        if (self.X_vec > 0 and self.Y_vec >= 0):
             quadrant = 1
-        elif (x_vec < 0 and y_vec >= 0):
+        elif (self.X_vec <= 0 and self.Y_vec > 0):
             quadrant = 2
-        elif (x_vec <= 0 and y_vec < 0):
+        elif (self.X_vec < 0 and self.Y_vec <= 0):
             quadrant = 3
-        elif (x_vec > 0 and y_vec <= 0):
+        elif (self.X_vec >= 0 and self.Y_vec < 0):
             quadrant = 4
+        return quadrant
+        
+    def cos_theta(self):
+        cos_theta = self.Z_vec/self.mod()
+        return cos_theta
 
+    def tan_phi(self):
+        tan_phi = None
         try:
-            tan_phi = y_vec/x_vec
+            tan_phi = self.Y_vec/self.X_vec
         except ZeroDivisionError:
-            tan_phi = float("inf")
+            tan_phi = float("inf")*np.sign(self.Y_vec)
+        return tan_phi
+
+    def cot_phi(self):
+        cot_phi = None
         try:
-            cot_phi = x_vec/y_vec
+            cot_phi = self.X_vec/self.Y_vec
         except ZeroDivisionError:
-            cot_phi = float("inf")
-    
-        photon_angles.append([quadrant, cos_theta, tan_phi, cot_phi, energy, weight])
-    return photon_angles
+            cot_phi = float("inf")*np.sign(self.X_vec)
+        return cot_phi
 
-def ARF_table(photon_angles):
-    """Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi.
-    """
-    table = np.zeros((2048, 512*4))
-
-    for photon in photon_angles:
-        quadrant = photon[0]
-        cos_theta = photon[1]
-        tan_phi = photon[2]
-        cot_phi = photon[3]
-        weight = photon[5]
-
+    def ARF_table(self):
+        """Find the correct position in the table"""
         theta_ind = phi_ind = None
+        quadrant = self.quadrant()
+        cos_theta = self.cos_theta()
+        tan_phi = self.tan_phi()
+        cot_phi = self.cot_phi()
 
         if quadrant == 0:
             theta_ind = phi_ind = 0
@@ -123,15 +113,31 @@ def ARF_table(photon_angles):
         if theta_ind == None or phi_ind == None:
             print(quadrant, cos_theta, tan_phi, cot_phi, theta_ind, phi_ind)
 
-        # print(quadrant, int(theta_ind), int(phi_ind), tan_phi, cot_phi, weight)
-        table[theta_ind, phi_ind] += weight
+        return (theta_ind, phi_ind)
 
-    return table
+def read_file(filename, lower_energy, upper_energy):
+    """Read listmode data: 10 int16, 1 float, 1 interger*1"""
+    data = []
+    with open(filename, "rb") as openfile:
+        positions = openfile.read(2*9)
+        while positions != "":
+            try:
+                locations = struct.unpack('h'*9, positions)
+                energy = float(struct.unpack('h', openfile.read(2))[0])/10
+                weight = float(struct.unpack('d', openfile.read(8))[0])
+                scatter = int(struct.unpack('b', openfile.read(1))[0])
+
+                # 20% energy window
+                if float(lower_energy) <= energy <= float(upper_energy):
+                    photon = PhotonListMode(locations, energy, weight, scatter)
+                    data.append(photon)
+
+                positions = openfile.read(2*9)
+            except:
+                break
+    return data
 
 def normalize_table(table):
-    """
-     Normalize the table
-     """
     solid_angles = np.zeros((2048, 512*4))
     delta_phi = np.zeros(2048)
 
@@ -169,11 +175,16 @@ def normalize_table(table):
 def main():
     # check if there are negative entries
     data = read_file(sys.argv[1], sys.argv[3], sys.argv[4])
-    photon_angles = angles(data)
 
-    table = ARF_table(photon_angles)
+    """Bin the photons into a 2048*2048 matrix according to cos_theta and tan_phi/cot_phi. Then normalize the table"""
+    table = np.zeros((2048, 512*4))
 
-    np.savetxt(sys.argv[2]+'.txt',normalize_table(table),fmt='%.5f')
+    for photon in data:
+        index = photon.ARF_table()
+        table[index[0], index[1]] += photon.weight
+    
+    table = normalize_table(table)
+    np.savetxt(sys.argv[2]+'.txt',table,fmt='%.5f')
         
 if __name__ == "__main__":
     cProfile.run('main()',sys.argv[2]+'.log')
