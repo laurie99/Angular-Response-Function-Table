@@ -215,12 +215,12 @@ def normalize_table(table):
             else:
                 delta_phi[ii] = delta_phi[ii+1024] = 90 - degrees(atan(1/cot_list13[ii%256]))
         elif 511 < ii <= 767:
-            delta_phi[ii] = delta_phi[ii+1024] = degrees(abs(atan(tan_list24[ii%256+1])-atan(tan_list24[ii%256])))
-        elif 767 < ii <= 1023:
             if cot_list24[ii%256] != 0:
                 delta_phi[ii] = delta_phi[ii+1024] = degrees(abs(atan(1/cot_list24[ii%256+1])-atan(1/cot_list24[ii%256])))
             else:
                 delta_phi[ii] = delta_phi[ii+1024] = degrees(abs(atan(1/cot_list24[ii%256+1]))) - 90
+        elif 767 < ii <= 1023:
+            delta_phi[ii] = delta_phi[ii+1024] = degrees(abs(atan(tan_list24[ii%256+1])-atan(tan_list24[ii%256])))
         elif ii >= 1024:
             break
 
@@ -254,6 +254,7 @@ def main():
         table = np.zeros((2048, 512*4))
 
         for photon in data:
+            # if photon.weight > 0:
             index = ARF_table(photon)
             table[index[0], index[1]] += photon.weight
     
